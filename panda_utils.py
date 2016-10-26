@@ -2,8 +2,12 @@ from __future__ import absolute_import
 
 import os
 import re
+
+import time
 import numpy as np
 from nltk.translate import bleu_score
+
+import skipthoughts
 
 # from pprint import pprint
 
@@ -81,7 +85,12 @@ def get_stories(f):
     with open(f) as f:
         return parse_stories(f.readlines())
 
-def vectorize_data(data, word_idx, glove, sentence_size, memory_size, ans_sentence_size, glove_dim):
+def load_sent2vec_model():
+    
+    return skipthoughts.load_model()
+
+
+def vectorize_data(data, word_idx, sent2vec_model, sentence_size, memory_size, ans_sentence_size):
     """
     Vectorize stories and queries.
 
@@ -96,6 +105,7 @@ def vectorize_data(data, word_idx, glove, sentence_size, memory_size, ans_senten
     Q = []
     A = []
     A_org = []
+
     for story, query, answer in data:
         ss = []
         for i, sentence in enumerate(story, 1):
@@ -113,59 +123,28 @@ def vectorize_data(data, word_idx, glove, sentence_size, memory_size, ans_senten
         lq = max(0, sentence_size - len(query))
         q = [word_idx[w] for w in query] + [0] * lq
 
-        y = np.zeros((ans_sentence_size, glove_dim)) # 0 is reserved for nil word
-        for i, w in enumerate(tokenize(answer)):
-            if w in glove:
-                y[i] = glove[w]
-
         S.append(ss)
         Q.append(q)
-        A.append(y)
         A_org.append(answer)
-    return np.array(S), np.array(Q), np.array(A), np.array(A_org)
 
-def load_glove(dim):
-    glove = {}
-    
-    print "==> loading glove"
-    with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "data/glove/glove.6B." + str(dim) + "d.txt")) as f:
-        for line in f:    
-            l = line.split()
-            glove[l[0]] = map(float, l[1:])
-            
-    print "==> glove is loaded"
-    
-    return glove
+    answers = [a for _, _, a in data]
+    A = skipthoughts.encode(sent2vec_model, answers, verbose=False)
+
+    return np.array(S), np.array(Q), A, np.array(A_org)
 
 
-def sentence_vec(data, vectors):
-    dic = {}
-    i = 0
-
-    for _, _, answer in data:
-        # print("answer")
-        # print(answer)
-        # print("vectors[i]")
-        # print(vectors[i])
-
-        dic[answer] = vectors[i]
-        i = i + 1
-
-    return dic
-
-
-def match_label(dict, source, reference):
+def match_label(dict, sources, references):
     answers = []
 
-    for i in range(len(source)):
-        # temp = np.repeat(source[i], len(reference), axis=0)
-        diff = np.fabs(np.subtract(reference, source[i]))
+    for i in range(len(sources)):
+        diff = np.square(np.subtract(references, sources[i]))
         errors = np.sum(diff, axis=1)
         ans_idx = np.argmin(errors)
         
         for answer, vec in dict.iteritems():
-            if np.array_equal(vec, reference[ans_idx]):
+            if np.array_equal(vec, references[ans_idx]):
                 answers.append(answer)
+                break;
 
         if i != len(answers) - 1:
             answers.append('')
@@ -173,8 +152,6 @@ def match_label(dict, source, reference):
     return answers
 
 def calculate_bleu(sources, references):
-    print('sources length : ', len(sources))
-    print('references length : ', len(references))
     assert len(sources) == len(references)
 
     # src_token = [[tokenize(src)] for src in sources]
@@ -192,3 +169,11 @@ def calculate_bleu(sources, references):
         score += bleu_score.corpus_bleu([[src]], [ref])
 
     return score / len(sources)
+
+def save_result(results, directory='./results/'):
+    now = time.time()
+    filepath = directory + str(now) + '.txt'
+
+    with open(filepath, 'w') as thefile:
+        for result in results:
+            thefile.write('%s\n' % result)

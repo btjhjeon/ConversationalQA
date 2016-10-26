@@ -54,8 +54,7 @@ def add_gradient_noise(t, stddev=1e-3, name=None):
 
 class MemN2N(object):
     """End-To-End Memory Network."""
-    def __init__(self, batch_size, vocab_size, ans_sentence_size, sentence_size, memory_size, 
-        embedding_size, glove_dim, rnn_neuron_size, rnn_layer_size,
+    def __init__(self, batch_size, vocab_size, ans_vec_size, sentence_size, memory_size, embedding_size, memn2n_vector_size,
         hops=3,
         max_grad_norm=40.0,
         nonlin=None,
@@ -103,13 +102,11 @@ class MemN2N(object):
 
         self._batch_size = batch_size
         self._vocab_size = vocab_size
-        self._ans_sentence_size = ans_sentence_size
+        self._ans_vec_size = ans_vec_size
         self._sentence_size = sentence_size
         self._memory_size = memory_size
         self._embedding_size = embedding_size
-        self._glove_dim = glove_dim
-        self._rnn_neuron_size = rnn_neuron_size
-        self._rnn_layer_size = rnn_layer_size
+        self._memn2n_vector_size = memn2n_vector_size
         
         self._hops = hops
         self._max_grad_norm = max_grad_norm
@@ -125,19 +122,9 @@ class MemN2N(object):
         # cross entropy
         logits = self._inference(self._stories, self._queries) # (batch_size, vocab_size)
         predict_proba_op = tf.nn.tanh(logits, name="predict_proba_op")
-        desire_op = self._desire(self._answers)
 
-        print("desire_op")
-        print(desire_op)
-
-        print("predict_proba_op")
-        print(predict_proba_op)
-
-        cross_entropy = tf.reduce_sum(tf.square(tf.sub(predict_proba_op, desire_op)), 1, name="cross_entropy")
+        cross_entropy = tf.reduce_sum(tf.square(tf.sub(predict_proba_op, self._answers)), 1, name="cross_entropy")
         # cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits, desire_proba_op, name="cross_entropy")
-        print("cross_entropy")
-        print(cross_entropy)
-
         cross_entropy_mean = tf.reduce_sum(cross_entropy, name="cross_entropy_mean")
         
         # loss op
@@ -161,7 +148,6 @@ class MemN2N(object):
         predict_log_proba_op = tf.log(predict_proba_op, name="predict_log_proba_op")
 
         # assign ops
-        self.desire_op = desire_op
         self.loss_op = loss_op
         self.predict_op = logits
         self.predict_proba_op = predict_proba_op
@@ -183,7 +169,7 @@ class MemN2N(object):
     def _build_inputs(self):
         self._stories = tf.placeholder(tf.int32, [self._batch_size, self._memory_size, self._sentence_size], name="stories")
         self._queries = tf.placeholder(tf.int32, [self._batch_size, self._sentence_size], name="queries")
-        self._answers = tf.placeholder(tf.float32, [self._batch_size, self._ans_sentence_size, self._glove_dim], name="answers")
+        self._answers = tf.placeholder(tf.float32, [self._batch_size, self._ans_vec_size], name="answers")
 
     def _build_vars(self):
         with tf.variable_scope(self._name):
@@ -199,30 +185,11 @@ class MemN2N(object):
             self.TC = tf.Variable(self._init([self._memory_size, self._embedding_size]), name='TC')
 
             self.H = tf.Variable(self._init([self._embedding_size, self._embedding_size]), name="H")
-            self.W1 = tf.Variable(self._init([self._embedding_size, self._sentence_size]), name="W1")
-            self.W2 = tf.Variable(self._init([self._sentence_size, self._rnn_neuron_size]), name="W2")
+            self.W1 = tf.Variable(self._init([self._embedding_size, self._memn2n_vector_size]), name="W1")
+            self.W2 = tf.Variable(self._init([self._memn2n_vector_size, self._ans_vec_size]), name="W2")
 
-            self.b1 = tf.Variable(tf.zeros([self._sentence_size]), name="b1")
-            self.b2 = tf.Variable(tf.zeros([self._rnn_neuron_size]), name="b2")
-
-            # GRU Variables
-            self.W_gru_upd_in = tf.Variable(self._init([self._glove_dim, self._rnn_neuron_size]),
-                                            trainable=False, name='W_gru_upd_in')
-            self.W_gru_upd_hid = tf.Variable(self._init([self._rnn_neuron_size, self._rnn_neuron_size]),
-                                            trainable=False, name='W_gru_upd_hid')
-            self.W_gru_res_in = tf.Variable(self._init([self._glove_dim, self._rnn_neuron_size]),
-                                            trainable=False, name='W_gru_res_in')
-            self.W_gru_res_hid = tf.Variable(self._init([self._rnn_neuron_size, self._rnn_neuron_size]),
-                                            trainable=False, name='W_gru_res_hid')
-            self.W_gru_hid_in = tf.Variable(self._init([self._glove_dim, self._rnn_neuron_size]),
-                                            trainable=False, name='W_gru_hid_in')
-            self.W_gru_hid_hid = tf.Variable(self._init([self._rnn_neuron_size, self._rnn_neuron_size]),
-                                            trainable=False, name='W_gru_hid_hid')
-
-            self.hid_state = tf.Variable(self._init([1, self._rnn_neuron_size]), trainable=False, name="hid_state")
-            self.b_gru_upd = tf.Variable(tf.zeros([self._rnn_neuron_size]), trainable=False, name="b_gru_upd")
-            self.b_gru_res = tf.Variable(tf.zeros([self._rnn_neuron_size]), trainable=False, name="b_gru_res")
-            self.b_gru_hid = tf.Variable(tf.zeros([self._rnn_neuron_size]), trainable=False, name="b_gru_hid")
+            self.b1 = tf.Variable(tf.zeros([self._memn2n_vector_size]), name="b1")
+            self.b2 = tf.Variable(tf.zeros([self._ans_vec_size]), name="b2")
             
         self._nil_vars = set([self.A.name, self.B.name])
 
@@ -263,29 +230,6 @@ class MemN2N(object):
 
             return prediction
 
-
-    def _desire(self, answers):
-        result = []
-
-        for idx_ans in range(answers.get_shape()[0]):
-            hid = self.hid_state
-            for idx_word in range(self._ans_sentence_size):
-                word_vec = answers[idx_ans, idx_word, :]
-                word_vec = tf.reshape(word_vec, [1, self._glove_dim])
-                hid = self._gru_step(word_vec, hid)
-            hid_list = tf.unpack(hid)
-            result.append(hid_list[0])
-
-        return tf.pack(result)
-
-        # with tf.variable_scope(self._name):
-        #     cell = tf.nn.rnn_cell.GRUCell(self._rnn_neuron_size)
-        #     cell = tf.nn.rnn_cell.MultiRNNCell([cell] * self._rnn_layer_size)
-        #     output, state = tf.nn.dynamic_rnn(cell, answers, dtype=tf.float32)
-        #     output = tf.transpose(output, [1, 0, 2])
-        #     last = tf.gather(output, int(output.get_shape()[0]) - 1)
-
-        #     return last
 
     def _gru_step(self, inp, hid):
 
@@ -360,14 +304,14 @@ class MemN2N(object):
         feed_dict = {self._stories: stories, self._queries: queries}
         return self._sess.run(self.predict_log_proba_op, feed_dict=feed_dict)
 
-    def desire(self, answers):
-        """get desired answer representations as one-hot encoding.
+    # def desire(self, answers):
+    #     """get desired answer representations as one-hot encoding.
 
-        Args:
-            answers: Tensor (None, memory_size, word_vector_size)
+    #     Args:
+    #         answers: Tensor (None, memory_size, word_vector_size)
 
-        Returns:
-            answers representation: Tensor (None, rnn_neuron_size)
-        """
-        feed_dict = {self._answers: answers}
-        return self._sess.run(self.desire_op, feed_dict=feed_dict)
+    #     Returns:
+    #         answers representation: Tensor (None, rnn_neuron_size)
+    #     """
+    #     feed_dict = {self._answers: answers}
+    #     return self._sess.run(self.desire_op, feed_dict=feed_dict)

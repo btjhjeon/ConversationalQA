@@ -2,11 +2,16 @@ import xlsxwriter
 import time
 
 class XlsxExporter(object):
-	def __init__(self, filepath='./results/' + str(time.time()) + '.xlsx'):
-		self._filepath = filepath
+	def __init__(self, story, filepath=None):
+		if filepath is None:
+			self._filepath = './results/' + story + time.strftime("_%Y%m%d%I%M" ,time.localtime()) + '.xlsx'
+		else:
+			self._filepath = filepath
+
 		self._data = []
 		self._current_row = 0
 		self._accuracy = None
+		self._question = None
 		self._desire = None
 		self._pred = None
 
@@ -19,7 +24,8 @@ class XlsxExporter(object):
 		self._data.append(result)
 
 
-	def set_answers(self, desire, pred):
+	def set_answers(self, question, desire, pred):
+		self._question = question
 		self._desire = desire
 		self._pred = pred
 
@@ -72,8 +78,10 @@ class XlsxExporter(object):
 			worksheet.write(self._current_row, 1, self._accuracy)
 
 	def _write_answers(self, worksheet):
-		if self._desire is not None and self._pred is not None:
-			worksheet.write('A1', 'Desire')
-			worksheet.write('B1', 'Prediction')
-			worksheet.write_column('A2', self._desire)
-			worksheet.write_column('B2', self._pred)
+		if self._question is not None and self._desire is not None and self._pred is not None:
+			worksheet.write('A1', 'Question')
+			worksheet.write('B1', 'Desire')
+			worksheet.write('C1', 'Prediction')
+			worksheet.write_column('A2', self._question)
+			worksheet.write_column('B2', self._desire)
+			worksheet.write_column('C2', self._pred)

@@ -129,14 +129,7 @@ for story in story_dic:
         with tf.Session() as sess:
             model = MemN2N(batch_size, vocab_size, ans_vec_size, sentence_size, memory_size, FLAGS.embedding_size, FLAGS.memn2n_vector_size,
                             session=sess, hops=FLAGS.hops, max_grad_norm=FLAGS.max_grad_norm, optimizer=optimizer)
-            saver = XlsxExporter()
-            # results = []
-            # results.append('[' + story + ']')
-            # results.append('Learning Rate : ' + str(FLAGS.learning_rate))
-            # results.append('Training Size : ' + str(n_train))
-            # results.append('Validation Size : ' + str(n_val))
-            # results.append('Sentence Size : ' + str(sentence_size))
-            # results.append('Answer vector Size : ' + str(ans_vec_size))
+            saver = XlsxExporter(story)
 
             header = {}
             header['Story'] = story
@@ -188,12 +181,6 @@ for story in story_dic:
                     # train_acc = metrics.accuracy_score(np.array(train_preds), np.array(train_labels))
                     # val_acc = metrics.accuracy_score(val_preds, val_labels)
 
-                    # results.append('----------------------------------')
-                    # results.append('Epoch : ' + str(t))
-                    # results.append('Total Cost : ' + str(total_cost))
-                    # results.append('Training Accuracy : ' + str(train_acc))
-                    # results.append('Validation Accuracy : ' + str(val_acc))
-                    # results.append('Duration Time : ' + str(duration))results.append('----------------------------------')
                     result = {}
                     result['Epoch'] = t
                     result['Total Cost'] = total_cost
@@ -225,10 +212,8 @@ for story in story_dic:
                 # print(test_preds)
                 print("Testing Accuracy:", test_acc)
                 
-                # results.append('==================================')
-                # results.append('Testing Accuracy : ' + str(test_acc))
-                saver.set_accuracy(str(test_acc))
+                saver.set_accuracy(test_acc)
 
             # panda_utils.save_result(results)
-            saver.set_answers(valA_org, val_preds)
+            saver.set_answers(valQ, valA_org, val_preds)
             saver.make_file()

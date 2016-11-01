@@ -188,12 +188,15 @@ def vectorize_data(data, word_idx, sent2vec_model, sentence_size, memory_size, a
         lq = max(0, sentence_size - len(query))
         q = [word_idx[w] for w in query] + [0] * lq
 
+        a = skipthoughts.encode(sent2vec_model, [answer], verbose=False)
+
         S.append(ss)
         Q.append(q)
+        A.append(a)
         A_org.append(answer)
 
-    answers = [a for _, _, a in data]
-    A = skipthoughts.encode(sent2vec_model, answers, verbose=False)
+    # answers = [a for _, _, a in data]
+    # A = skipthoughts.encode(sent2vec_model, answers, verbose=False)
 
     return np.array(S), np.array(Q), A, np.array(A_org)
 

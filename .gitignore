@@ -88,5 +88,8 @@ ENV/
 # Rope project settings
 .ropeproject
 
-# sublime-ftp setting
+# sublime-ftp settings
 sftp-config.json
+
+# result data files
+results/

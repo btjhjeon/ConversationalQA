@@ -54,7 +54,8 @@ def add_gradient_noise(t, stddev=1e-3, name=None):
 
 class MemN2N(object):
     """End-To-End Memory Network."""
-    def __init__(self, batch_size, vocab_size, ans_vec_size, sentence_size, memory_size, embedding_size, memn2n_vector_size,
+    def __init__(self, batch_size, vocab_size, ans_vec_size, sentence_size, memory_size, embedding_size, 
+        memn2n_vector_size, loss_norm,
         hops=3,
         max_grad_norm=40.0,
         nonlin=None,
@@ -107,6 +108,7 @@ class MemN2N(object):
         self._memory_size = memory_size
         self._embedding_size = embedding_size
         self._memn2n_vector_size = memn2n_vector_size
+        self._loss_norm = loss_norm
         
         self._hops = hops
         self._max_grad_norm = max_grad_norm
@@ -123,7 +125,10 @@ class MemN2N(object):
         logits = self._inference(self._stories, self._queries) # (batch_size, vocab_size)
         predict_proba_op = tf.nn.tanh(logits, name="predict_proba_op")
 
-        cross_entropy = tf.reduce_sum(tf.square(tf.sub(predict_proba_op, self._answers)), 1, name="cross_entropy")
+        if self._loss_norm == 1:
+            cross_entropy = tf.reduce_sum(tf.abs(tf.sub(predict_proba_op, self._answers)), 1, name="cross_entropy")
+        else:
+            cross_entropy = tf.sqrt(tf.reduce_sum(tf.square(tf.sub(predict_proba_op, self._answers)), 1, name="cross_entropy"))
         # cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits, desire_proba_op, name="cross_entropy")
         cross_entropy_mean = tf.reduce_sum(cross_entropy, name="cross_entropy_mean")
         

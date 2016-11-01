@@ -4,7 +4,7 @@ import time
 class XlsxExporter(object):
 	def __init__(self, story, filepath=None):
 		if filepath is None:
-			self._filepath = './results/' + story + time.strftime("_%Y%m%d%I%M" ,time.localtime()) + '.xlsx'
+			self._filepath = './results/' + story + time.strftime("_%Y%m%d%H%M" ,time.localtime()) + '.xlsx'
 		else:
 			self._filepath = filepath
 
@@ -28,6 +28,7 @@ class XlsxExporter(object):
 		self._question = question
 		self._desire = desire
 		self._pred = pred
+
 
 	def set_accuracy(self, acc):
 		self._accuracy = acc
@@ -76,6 +77,7 @@ class XlsxExporter(object):
 			self._current_row += 1
 			worksheet.write(self._current_row, 0, 'Testing Accuracy')
 			worksheet.write(self._current_row, 1, self._accuracy)
+
 
 	def _write_answers(self, worksheet):
 		if self._question is not None and self._desire is not None and self._pred is not None:

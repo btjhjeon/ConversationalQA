@@ -5,6 +5,7 @@ import re
 
 import time
 import numpy as np
+from progress.bar import Bar
 from nltk.translate import bleu_score
 
 import skipthoughts
@@ -32,6 +33,26 @@ def load_data(data_dir, task_story):
     train_data = get_stories(train_file)
     test_data = get_stories(test_file)
     return train_data, test_data
+
+
+def load_queries(data_dir, task_story):
+    story_dic = ['HanselAndGretel',
+        'SnowWhiteAndTheSevenDwarves',
+        'TheLittleMermaid',
+        'TheThreeLittlePigs',
+        'TheWolfAndTheSevenSheep']
+
+    assert task_story in story_dic
+
+    files = os.listdir(data_dir)
+    files = [os.path.join(data_dir, f) for f in files]
+    s = '{}_dataset_'.format(task_story)
+    train_file = [f for f in files if s in f and 'train' in f][0]
+    test_file = [f for f in files if s in f and 'test' in f][0]
+    train_data = get_queries(train_file)
+    test_data = get_queries(test_file)
+    return train_data, test_data
+
 
 def tokenize(sent):
     '''Return the tokens of a sentence including punctuation.
@@ -78,12 +99,56 @@ def parse_stories(lines):
     return data
 
 
+def parse_queries(lines):
+    '''Parse stories provided in the bAbI tasks format
+    If only_supporting is true, only the sentences that support the answer are kept.
+    '''
+    data = []
+    story = []
+    for line in lines:
+        line = str.lower(line)
+        nid, line = line.split(' ', 1)
+        nid = int(nid)
+        if nid == 1:
+            story = []
+        if '\t' in line: # question
+            q, a = line.split('\t')
+
+            substory = None
+
+            # remove question marks
+            if q[-1] == "?":
+                q = q[:-1]
+
+            # Provide all the substories
+            substory = [x for x in story if x]
+
+            data.append(q)
+            story.append('')
+        else: # regular sentence
+            # remove periods
+            sent = tokenize(line)
+            if sent[-1] == ".":
+                sent = sent[:-1]
+            story.append(sent)
+    return data
+
+
 def get_stories(f):
     '''Given a file name, read the file, retrieve the stories, and then convert the sentences into a single story.
     If max_length is supplied, any stories longer than max_length tokens will be discarded.
     '''
     with open(f) as f:
         return parse_stories(f.readlines())
+
+
+def get_queries(f):
+    '''Given a file name, read the file, retrieve the stories, and then convert the sentences into a single story.
+    If max_length is supplied, any stories longer than max_length tokens will be discarded.
+    '''
+    with open(f) as f:
+        return parse_queries(f.readlines())
+
 
 def load_sent2vec_model():
     
@@ -151,24 +216,24 @@ def match_label(dict, sources, references):
 
     return answers
 
+
 def calculate_bleu(sources, references):
     assert len(sources) == len(references)
 
     # src_token = [[tokenize(src)] for src in sources]
     # ref_token = [tokenize(ref) for ref in references]
+    src_token = [[src] for src in sources]
+    ref_token = references
 
     # print('src_token : ', max(map(len, src_token)))
     # print(np.array(src_token).shape)
+    # print(src_token)
     # print("ref_token : ", max(map(len, ref_token)))
     # print(np.array(ref_token).shape)
+    # print(ref_token)
 
-    # return bleu_score.corpus_bleu(src_token, ref_token)
-    
-    score = 0
-    for src, ref in zip(sources, references):
-        score += bleu_score.corpus_bleu([[src]], [ref])
+    return bleu_score.corpus_bleu(src_token, ref_token)
 
-    return score / len(sources)
 
 def save_result(results, directory='./results/'):
     now = time.time()
@@ -177,3 +242,9 @@ def save_result(results, directory='./results/'):
     with open(filepath, 'w') as thefile:
         for result in results:
             thefile.write('%s\n' % result)
+
+
+class ProgressBar(Bar):
+    message = 'Loading'
+    fill = '#'
+    suffix = '%(percent).1f%% | ETA: %(eta)ds'

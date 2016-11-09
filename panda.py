@@ -21,7 +21,7 @@ tf.flags.DEFINE_float("learning_rate", 0.01, "Learning rate for Adam Optimizer."
 tf.flags.DEFINE_float("epsilon", 1e-8, "Epsilon value for Adam Optimizer.")
 tf.flags.DEFINE_float("max_grad_norm", 40.0, "Clip gradients to this norm.")
 tf.flags.DEFINE_integer("evaluation_interval", 10, "Evaluate and print results every x epochs")
-tf.flags.DEFINE_integer("batch_size", 40, "Batch size for training.")
+tf.flags.DEFINE_integer("batch_size", 20, "Batch size for training.")
 tf.flags.DEFINE_integer("hops", 3, "Number of hops in the Memory Network.")
 tf.flags.DEFINE_integer("epochs", 2000, "Number of epochs to train for.")
 tf.flags.DEFINE_integer("embedding_size", 20, "Embedding size for embedding matrices.")
@@ -145,6 +145,7 @@ for story in story_dic:
             header['Sentence Size'] = str(sentence_size)
             header['Answer Vector Size'] = str(ans_vec_size)
             header['MemN2N Vector Size'] = str(FLAGS.memn2n_vector_size)
+            header['Normalization level'] = str(FLAGS.loss_norm)
             saver.set_header(header)
 
             bar = ProgressBar('Train : ' + story, max=FLAGS.epochs)

@@ -4,7 +4,7 @@ it is based on End-to-End Memory Networks. And I extend this model using Skip-th
 
 ## Dataset
 
-We use the "PandaQA" dataset. Unfortunately, it is not available due to the Licence issues of the owner. the PandaQA dataset is very similar with the [bAbI dataset](https://research.fb.com/downloads/babi/) of QA tasks.
+We use the "PandaQA" dataset. Unfortunately, it is not available due to the Licence issues of the owner. The PandaQA dataset is similar with the [bAbI dataset](https://research.fb.com/downloads/babi/) of QA tasks in terms of dialog-based question answering dataset. But answers in the PandaQA dataset is a sentence, not a word.
 
 ## Model
 

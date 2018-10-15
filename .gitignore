@@ -92,4 +92,8 @@ ENV/
 sftp-config.json
 
 # result data files
+data/
 results/
+
+# visual studio code configure file
+.vscode/
